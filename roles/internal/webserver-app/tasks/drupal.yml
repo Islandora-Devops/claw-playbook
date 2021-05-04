@@ -17,6 +17,9 @@
           ],
         ],
       ];
+
+      global $content_directories;
+      $content_directories['sync'] = "{{ drupal_composer_install_dir }}/content/sync";
     path: "{{ drupal_trusted_hosts_file }}"
     marker: // {mark} ANSIBLE MANAGED BLOCK
 
@@ -42,27 +45,6 @@
 
 - name: Import features
   command: "{{ drush_path }} --root {{ drupal_core_path }} -y fim islandora_core_feature,islandora_defaults,islandora_search"
-
-
-# masonry library is required by content_browser and not installed by composer due to issue 2971165.
-- name: Create drupal library directory.
-  file:
-    state: directory
-    path: "{{ drupal_external_libraries_directory }}"
-    owner: "{{ webserver_app_user }}"
-    group: "{{ webserver_app_user }}"
-
-- name: Unarchive masonry library.
-  unarchive:
-    src: "https://github.com/desandro/masonry/archive/v3.3.2.zip"
-    dest: "{{ drupal_external_libraries_directory }}"
-    creates: "{{ drupal_external_libraries_directory }}/masonry"
-    remote_src: yes
-
-- name: Rename masonry directory.
-  command: mv "{{ drupal_external_libraries_directory }}/masonry-3.3.2" "{{ drupal_external_libraries_directory }}/masonry"
-  args:
-    creates: "{{ drupal_external_libraries_directory }}/masonry"
 
 # Set Matomo Settings
 - name: Set Matomo site id.
@@ -103,4 +85,18 @@
     state: present
   become: false
   when: ansible_os_family == "RedHat"
+
+# Content sync settings
+- name: Create content sync directory.
+  file:
+    path: "{{ drupal_composer_install_dir }}/content/sync"
+    state: directory
+    owner: "{{ webserver_app_user }}"
+    group: "{{ webserver_app_user }}"
+    recurse: yes
+
+- name: Enable Bartik theme
+  command: "{{ drush_path }} --root {{ drupal_core_path }} -y theme:enable bartik"
+  register: enable_bartik
+  changed_when: "'Successfully enabled theme: bartik' in enable_bartik.stdout"
 
